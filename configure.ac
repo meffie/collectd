@@ -5177,6 +5177,7 @@ plugin_memory="no"
 plugin_multimeter="no"
 plugin_nfs="no"
 plugin_numa="no"
+plugin_openafs="no"
 plugin_perl="no"
 plugin_processes="no"
 plugin_protocols="no"
@@ -5595,6 +5596,7 @@ AC_PLUGIN([numa],        [$plugin_numa],       [NUMA virtual memory statistics])
 AC_PLUGIN([nut],         [$with_libupsclient], [Network UPS tools statistics])
 AC_PLUGIN([olsrd],       [yes],                [olsrd statistics])
 AC_PLUGIN([onewire],     [$with_libowcapi],    [OneWire sensor statistics])
+AC_PLUGIN([openafs],     [yes],                [OpenAFS statistics])
 AC_PLUGIN([openldap],    [$with_libldap],      [OpenLDAP statistics])
 AC_PLUGIN([openvpn],     [yes],                [OpenVPN client statistics])
 AC_PLUGIN([oracle],      [$with_oracle],       [Oracle plugin])
@@ -5973,6 +5975,7 @@ Configuration:
     nut . . . . . . . . . $enable_nut
     olsrd . . . . . . . . $enable_olsrd
     onewire . . . . . . . $enable_onewire
+    openafs . . . . . . . $enable_openafs
     openldap  . . . . . . $enable_openldap
     openvpn . . . . . . . $enable_openvpn
     oracle  . . . . . . . $enable_oracle

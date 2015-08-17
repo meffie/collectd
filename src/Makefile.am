@@ -757,6 +757,13 @@ onewire_la_LIBADD = $(BUILD_WITH_LIBOWCAPI_LIBS)
 onewire_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
+if BUILD_PLUGIN_OPENAFS
+pkglib_LTLIBRARIES += openafs.la
+openafs_la_SOURCES = openafs.c
+openafs_la_CFLAGS = $(AM_CFLAGS)
+openafs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+endif
+
 if BUILD_PLUGIN_OPENLDAP
 pkglib_LTLIBRARIES += openldap.la
 openldap_la_SOURCES = openldap.c
