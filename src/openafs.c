@@ -359,6 +359,26 @@ static int openafs_config (const char *key, const char *value)
   return (0);
 }
 
+static void openafs_start_mq_thread(void)
+{
+  int status;
+  char errbuf[1024];
+
+  pthread_mutex_lock (&mq_thread_lock);
+  if (!mq_thread_running && !mq_thread_shutdown)
+  {
+    mq_thread_running = 1;
+    status = plugin_thread_create (&mq_thread, NULL, openafs_mq_thread, NULL);
+    if (status != 0)
+    {
+      mq_thread_running = 0;
+      ERROR ("openafs plugin: pthread_create failed: %s (%d)",
+          sstrerror (errno, errbuf, sizeof (errbuf), errno));
+    }
+  }
+  pthread_mutex_unlock (&mq_thread_lock);
+}
+
 static int openafs_init (void)
 {
   DEBUG ("openafs plugin: init");
@@ -369,23 +389,10 @@ static int openafs_init (void)
     volume_tree = c_avl_create ((void *) strcmp);
   }
   pthread_mutex_unlock (&volume_tree_lock);
-
-  pthread_mutex_lock (&mq_thread_lock);
   if (!mq_thread_running)
   {
-    int status;
-
-    status = plugin_thread_create (&mq_thread, NULL, openafs_mq_thread, NULL);
-    if (status != 0)
-    {
-      char errbuf[1024];
-      ERROR ("openafs plugin: pthread_create failed: %s",
-          sstrerror (errno, errbuf, sizeof (errbuf)));
-      return (status);
-    }
+    openafs_start_mq_thread();
   }
-  mq_thread_running = 1;
-  pthread_mutex_unlock (&mq_thread_lock);
   return (0);
 }
 
@@ -396,6 +403,11 @@ static int openafs_read (void)
   volume_metric_t *metric;
 
   DEBUG ("openafs plugin: read");
+
+  if (!mq_thread_running && !mq_thread_shutdown)
+  {
+    openafs_start_mq_thread();
+  }
 
   pthread_mutex_lock (&volume_tree_lock);
   if (volume_tree == NULL)
