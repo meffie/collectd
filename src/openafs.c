@@ -138,6 +138,7 @@ static volume_metric_t* volume_metric_lookup(char *volume)
     sfree (metric);
     return (NULL);
   }
+  DEBUG ("volume_metric_lookup: inserted volume=%s", volume);
   return (metric);
 }
 
@@ -175,6 +176,7 @@ static int volume_metric_submit(char *volume, volume_metric_t *metric)
   vl.values_len = 1;
   vl.values[0].derive = metric->vol_access;
 
+  /* DEBUG */ INFO ("volume_metric_submit: dispatching volume=%s, metric->vol_access=%ld", volume, metric->vol_access);
   plugin_dispatch_values (&vl);
   return (0);
 }
@@ -295,6 +297,7 @@ static void *openafs_mq_thread (void *args)
   int flags = MSG_NOERROR;  /* Should never happen, but truncate E2BIG messages
                              * instead of leaving them in the queue. */
 
+  DEBUG ("openafs_mq_thread: started");
   if (path == NULL)
   {
     path = "/usr/afs/logs/FileAudit";
@@ -304,8 +307,8 @@ static void *openafs_mq_thread (void *args)
   {
     char errbuf[1024];
 
-    ERROR ("openafs plugin: ftok failed: %s",
-      sstrerror (errno, errbuf, sizeof (errbuf)));
+    ERROR ("openafs plugin: cannot read audit log; ftok failed: %s (%d)",
+      sstrerror (errno, errbuf, sizeof (errbuf)), errno);
     mq_thread_running = 0;
     pthread_exit (NULL);
   }
@@ -315,8 +318,8 @@ static void *openafs_mq_thread (void *args)
   {
     char errbuf[1024];
 
-    ERROR ("openafs plugin: msgget failed: %s",
-      sstrerror (errno, errbuf, sizeof(errbuf)));
+    ERROR ("openafs plugin: cannot read audit log; msgget failed: %s (%d)",
+      sstrerror (errno, errbuf, sizeof(errbuf)), errno);
     mq_thread_running = 0;
     pthread_exit (NULL);
   }
@@ -332,13 +335,16 @@ static void *openafs_mq_thread (void *args)
         sleep(1);
         continue;
       }
-      ERROR ("openafs plugin: msgrcv failed: %s",
-          sstrerror (errno, errbuf, sizeof (errbuf)));
+      ERROR ("openafs plugin: cannot read audit log; msgrcv failed: %s (%d)",
+          sstrerror (errno, errbuf, sizeof (errbuf)), errno);
       break;
     }
-    //DEBUG ("openafs plugin: audit message: len=%ld, mtype=%ld, mtext=\"%s\"", len, buffer.mtype, buffer.mtext);
+    DEBUG ("openafs plugin: audit message: len=%ld, mtype=%ld, mtext=\"%s\"", len, buffer.mtype, buffer.mtext);
     parse_audit_msg (buffer.mtext);
   }
+
+  mq_thread_running = 0;
+  DEBUG ("openafs_mq_thread: returning");
   return (NULL);
 }
 
@@ -373,7 +379,7 @@ static void openafs_start_mq_thread(void)
     {
       mq_thread_running = 0;
       ERROR ("openafs plugin: pthread_create failed: %s (%d)",
-          sstrerror (errno, errbuf, sizeof (errbuf), errno));
+          sstrerror (errno, errbuf, sizeof (errbuf)), errno);
     }
   }
   pthread_mutex_unlock (&mq_thread_lock);
@@ -381,7 +387,7 @@ static void openafs_start_mq_thread(void)
 
 static int openafs_init (void)
 {
-  DEBUG ("openafs plugin: init");
+  INFO ("openafs plugin: init");
 
   pthread_mutex_lock (&volume_tree_lock);
   if (volume_tree == NULL)
@@ -412,10 +418,12 @@ static int openafs_read (void)
   pthread_mutex_lock (&volume_tree_lock);
   if (volume_tree == NULL)
   {
+    ERROR ("openafs_read: volume_tree=NULL");
     pthread_mutex_unlock (&volume_tree_lock);
     return (0);
   }
 
+  DEBUG ("openafs_read: walking volume_tree");
   iter = c_avl_get_iterator (volume_tree);
   while (c_avl_iterator_next (iter, (void *) &volume, (void *) &metric) == 0)
   {
