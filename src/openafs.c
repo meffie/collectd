@@ -292,7 +292,8 @@ static void *openafs_mq_thread (void *args)
   int mqid;
   size_t len;
   struct mq_buffer_s buffer;
-  char errbuf[1024];
+  int flags = MSG_NOERROR;  /* Should never happen, but truncate E2BIG messages
+                             * instead of leaving them in the queue. */
 
   if (path == NULL)
   {
@@ -322,20 +323,15 @@ static void *openafs_mq_thread (void *args)
 
   while (!mq_thread_shutdown)
   {
-    len = msgrcv (mqid, &buffer, sizeof(buffer), 0, 0);
+    len = msgrcv (mqid, &buffer, sizeof(buffer), 0, flags);
+    if (len == (size_t)-1) {
+      char errbuf[1024];
 
-    if (len < 0) {
-      if ((errno == EINTR) || (errno == EAGAIN))
+      if (errno == EINTR)
       {
         sleep(1);
         continue;
       }
-      ERROR ("openafs plugin: msgrcv failed: %s",
-          sstrerror (errno, errbuf, sizeof (errbuf)));
-      break;
-    }
-    if (errno != 0)  /* EACESS will return a blank message. */
-    {
       ERROR ("openafs plugin: msgrcv failed: %s",
           sstrerror (errno, errbuf, sizeof (errbuf)));
       break;
