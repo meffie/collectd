@@ -42,13 +42,12 @@
 /* Configuration */
 static const char *config_keys[] =
 {
-  "Example",
+  "FileAuditLog",
 };
 static int config_keys_num = STATIC_ARRAY_SIZE (config_keys);
-
+static char *openafs_file_audit_log = NULL;
 
 /* OpenAFS sys-v message queue style audit log. */
-#define AUDIT_PATH    "/usr/afs/logs/FileAudit"
 #define AUDIT_PROJ_ID 1
 
 static pthread_mutex_t mq_thread_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -270,13 +269,18 @@ static int parse_audit_msg (char *text)
 
 static void *openafs_mq_thread (void *args)
 {
+  char *path = openafs_file_audit_log;
   key_t key;
   int mqid;
   size_t len;
   struct mq_buffer_s buffer;
   char errbuf[1024];
 
-  key = ftok (AUDIT_PATH, AUDIT_PROJ_ID);
+  if (path == NULL)
+  {
+    path = "/usr/afs/logs/FileAudit";
+  }
+  key = ftok (path, AUDIT_PROJ_ID);
   if (key < 0)
   {
     char errbuf[1024];
@@ -326,9 +330,13 @@ static void *openafs_mq_thread (void *args)
 
 static int openafs_config (const char *key, const char *value)
 {
-  if (strcasecmp (key, "Example") == 0)
+  if (strcasecmp (key, "FileAuditLog") == 0)
   {
-    DEBUG ("Read example.");
+    char *tmp = strdup (value);
+    if (tmp == NULL)
+      return -1;
+    sfree (openafs_file_audit_log);
+    openafs_file_audit_log = tmp;
   }
   else
   {
