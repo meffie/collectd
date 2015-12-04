@@ -39,6 +39,24 @@
 #include <sys/msg.h>
 #include <pthread.h>
 
+/*
+ * Data Source
+ *
+ * For now, create a custom data type so we do not have to overwrite the
+ * types.db file which is installed by the base collectd package.
+ */
+static data_source_t openafs_dsrc[1] =
+{
+  {"value", DS_TYPE_DERIVE, 0.0, NAN }
+};
+
+/* Data Set */
+static data_set_t openafs_ds =
+{
+  "volume_access", STATIC_ARRAY_SIZE (openafs_dsrc), openafs_dsrc
+};
+
+
 /* Configuration */
 static const char *config_keys[] =
 {
@@ -82,8 +100,8 @@ static pthread_mutex_t volume_tree_lock = PTHREAD_MUTEX_INITIALIZER;
 
 struct volume_metric_s
 {
-  int seen;           /* This volume seen in audit log since last dispatch. */
-  derive_t accesses;  /* Count of accesses seen in audit log. */
+  int seen;             /* This volume seen in audit log since last dispatch. */
+  derive_t vol_access;  /* volume accesses seen in audit log. */
 };
 typedef struct volume_metric_s volume_metric_t;
 
@@ -137,7 +155,7 @@ static int volume_metric_add_access(char *volume)
   }
 
   metric->seen = 1;
-  metric->accesses++;
+  metric->vol_access++;
 
   pthread_mutex_unlock (&volume_tree_lock);
   return (0);
@@ -151,11 +169,11 @@ static int volume_metric_submit(char *volume, volume_metric_t *metric)
 
   sstrncpy (vl.host, hostname_g, sizeof (vl.host));
   sstrncpy (vl.plugin, "openafs", sizeof (vl.plugin));
-  sstrncpy (vl.type, "accesses", sizeof (vl.type));
+  sstrncpy (vl.type, "volume_access", sizeof (vl.type));
   sstrncpy (vl.type_instance, volume, sizeof (vl.type_instance)); /* string of digits */
   vl.values = values;
   vl.values_len = 1;
-  vl.values[0].derive = metric->accesses;
+  vl.values[0].derive = metric->vol_access;
 
   plugin_dispatch_values (&vl);
   return (0);
@@ -426,7 +444,8 @@ static int openafs_shutdown (void)
 
 void module_register (void)
 {
-  plugin_register_config("openafs", openafs_config, config_keys, config_keys_num);
+  plugin_register_config ("openafs", openafs_config, config_keys, config_keys_num);
+  plugin_register_data_set (&openafs_ds);
   plugin_register_init ("openafs", openafs_init);
   plugin_register_read ("openafs", openafs_read);
   plugin_register_shutdown ("openafs", openafs_shutdown);
