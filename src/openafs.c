@@ -176,7 +176,7 @@ static int volume_metric_submit(char *volume, volume_metric_t *metric)
   vl.values_len = 1;
   vl.values[0].derive = metric->vol_access;
 
-  /* DEBUG */ INFO ("volume_metric_submit: dispatching volume=%s, metric->vol_access=%ld", volume, metric->vol_access);
+  DEBUG ("volume_metric_submit: dispatching volume=%s, metric->vol_access=%ld", volume, metric->vol_access);
   plugin_dispatch_values (&vl);
   return (0);
 }
