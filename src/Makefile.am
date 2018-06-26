@@ -758,10 +758,17 @@ onewire_la_LDFLAGS = $(PLUGIN_LDFLAGS)
 endif
 
 if BUILD_PLUGIN_OPENAFS
+OPENAFS_DIR = /opt/openafs
+OPENAFS_INCDIR = $(OPENAFS_DIR)/usr/local/include
+OPENAFS_LIBDIR = $(OPENAFS_DIR)/usr/local/lib
 pkglib_LTLIBRARIES += openafs.la
 openafs_la_SOURCES = openafs.c
-openafs_la_CFLAGS = $(AM_CFLAGS)
-openafs_la_LDFLAGS = $(PLUGIN_LDFLAGS)
+openafs_la_CFLAGS = $(AM_CFLAGS) -I $(OPENAFS_INCDIR)
+openafs_la_LDFLAGS = $(PLUGIN_LDFLAGS) \
+ -lafsrpc -lafshcrypto -lrokenafs
+# /home/mmeffie/src/openafs/src/libafsrpc/libafsrpc.la \
+# /home/mmeffie/src/openafs/src/crypto/hcrypto/libafshcrypto.la \
+# /home/mmeffie/src/openafs/src/roken/librokenafs.la
 endif
 
 if BUILD_PLUGIN_OPENLDAP

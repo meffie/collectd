@@ -39,6 +39,37 @@
 #include <sys/msg.h>
 #include <pthread.h>
 
+#include <arpa/inet.h>
+#include <rx/xdr.h>
+#include <afs/rxgen_consts.h>
+#include <rx/rx.h>
+#include <afs/afsint.h>
+
+#define AFS_SERVICE_ID 1
+#define AFS_FILESERVER_PORT 7000
+
+struct rx_connection*
+new_connection(char *hostname)
+{
+    struct sockaddr_in addr;
+    struct rx_securityClass *sc = NULL;
+    struct rx_connection *conn = NULL;
+
+    INFO ("new_connection; hostname=\"%s\"", hostname);
+    memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(AFS_FILESERVER_PORT);
+    inet_pton(AF_INET, hostname, &addr.sin_addr);
+
+    sc = rxnull_NewClientSecurityObject();
+    conn = rx_NewConnection(addr.sin_addr.s_addr, addr.sin_port, AFS_SERVICE_ID, sc, 0);
+    if (!conn) {
+        ERROR ("Failed to create connection.");
+        return NULL;
+    }
+    return conn;
+}
+
 /*
  * Data Source
  *
@@ -388,6 +419,15 @@ static void openafs_start_mq_thread(void)
 static int openafs_init (void)
 {
   INFO ("openafs plugin: init");
+  int  code;
+  struct rx_connection *conn = NULL;
+  char *hostname = "localhost";
+  afs_int32 collection;
+  afs_int32 version;
+  afs_int32 time;
+  AFS_CollData stats;
+  int i;
+
 
   pthread_mutex_lock (&volume_tree_lock);
   if (volume_tree == NULL)
@@ -399,6 +439,35 @@ static int openafs_init (void)
   {
     openafs_start_mq_thread();
   }
+
+
+  /* xstat */
+  code = rx_Init(0);
+  if (code != 0) {
+    ERROR("rx initialization failed; code=%d", code);
+    return -1;
+  }
+
+  conn = new_connection(hostname);
+
+    collection = 2;
+    version = 0;
+    time = 0;
+    memset(&stats, 0, sizeof(stats));
+
+    INFO("calling get-x-stats");
+    code = RXAFS_GetXStats(conn, AFS_XSTAT_VERSION, collection, &version, &time, &stats);
+    if (code) {
+        fprintf(stderr, "Failed to call get-x-stats; code=%d\n", code);
+        return 1;
+    }
+    INFO("version=%d", version);
+    INFO("len=%d", stats.AFS_CollData_len);
+    for (i = 0; i < stats.AFS_CollData_len; i++) {
+        INFO("val[%d] = %d", i, stats.AFS_CollData_val[i]);
+    }
+    free(stats.AFS_CollData_val);
+
   return (0);
 }
 
